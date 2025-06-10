@@ -1,5 +1,6 @@
 package ru.igrakov.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -37,6 +38,7 @@ import java.util.*
  * @author Andrey Igrakov
  *
 */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BoardScreen() {
 
@@ -47,9 +49,16 @@ fun BoardScreen() {
     var showNewColumnDialog by remember { mutableStateOf(false) }
     var boardModel by remember { mutableStateOf<BoardModel?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-
     // Название новой колонки
     var newColumnTitle by remember { mutableStateOf("") }
+
+    var draggedCard by remember { mutableStateOf<CardModel?>(null) }
+    var sourceColumnId by remember { mutableStateOf<String?>(null) }
+
+    fun updateBoard(newBoard: BoardModel?) {
+        boardModel = newBoard
+        saveBoard(newBoard)
+    }
 
     // Загрузка данных доски при изменении рабочего пространства
     LaunchedEffect(workspaceId) {
@@ -116,13 +125,11 @@ fun BoardScreen() {
             )
         }
 
-        // Отображаем индикатор загрузки
         if (isLoading || boardModel == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else {
-            // Отображаем список колонок
             val columns = remember(boardModel) { boardModel?.columns?.toList() ?: emptyList() }
 
             LazyRow(
@@ -134,22 +141,60 @@ fun BoardScreen() {
                     .padding(padding)
             ) {
                 items(columns, key = { it.id }) { column ->
+                    val isDropTarget = remember(draggedCard, sourceColumnId) {
+                        draggedCard != null && sourceColumnId != column.id
+                    }
+
+
                     ColumnView(
                         columnData = column,
-                        onAddCard = { card -> addCard(column.id, card, boardModel) { boardModel = it } },
-                        onDeleteColumn = { deleteColumn(column.id, boardModel) { boardModel = it } },
+                        onAddCard = { card ->
+                            addCard(column.id, card, boardModel) { updatedBoard ->
+                                updateBoard(updatedBoard)
+                            }
+                        },
+                        onDeleteColumn = {
+                            deleteColumn(column.id, boardModel) { updatedBoard ->
+                                updateBoard(updatedBoard)
+                            }
+                        },
                         onDeleteCard = { cardId ->
-                            // Удаление карточки из колонки
                             val updatedColumns = boardModel?.columns?.map {
                                 if (it.id == column.id) it.copy(cards = it.cards.filter { c -> c.id != cardId })
                                 else it
                             } ?: emptyList()
-                            boardModel = boardModel?.copy(columns = updatedColumns.toMutableList())
+                            updateBoard(boardModel?.copy(columns = updatedColumns.toMutableList()))
                         },
-                        onUpdateCard = { updatedCard -> updateCard(column.id, updatedCard, boardModel) { boardModel = it } },
-                        onUpdate = { saveBoard(boardModel) }
+                        onUpdateCard = { updatedCard ->
+                            updateCard(column.id, updatedCard, boardModel) { updatedBoard ->
+                                updateBoard(updatedBoard)
+                            }
+                        },
+                        onUpdate = { saveBoard(boardModel) },
+                        onMoveCard = { card, targetColumnId ->
+                            if (sourceColumnId != null && sourceColumnId != targetColumnId) {
+                                moveCard(
+                                    boardModel,
+                                    card.id,
+                                    sourceColumnId!!,
+                                    targetColumnId
+                                ) { updatedBoard ->
+                                    updateBoard(updatedBoard)
+                                }
+                            }
+                        },
+                        isDropTarget = isDropTarget,
+                        onDragStart = { card ->
+                            draggedCard = card
+                            sourceColumnId = column.id
+                        },
+                        onDragEnd = {
+                            draggedCard = null
+                            sourceColumnId = null
+                        },
+                        modifier = Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null)
                     )
-                }
+                    }
             }
         }
     }
@@ -234,6 +279,33 @@ private fun saveBoard(boardModel: BoardModel?) {
         FileService.saveBoard(it)
     }
 }
+
+private fun moveCard(
+    boardModel: BoardModel?,
+    cardId: String,
+    sourceColumnId: String,
+    targetColumnId: String,
+    updateBoardData: (BoardModel) -> Unit
+) {
+    boardModel?.let { board ->
+        val sourceColumn = board.columns.firstOrNull { it.id == sourceColumnId }
+        val card = sourceColumn?.cards?.firstOrNull { it.id == cardId } ?: return@let
+
+        val updatedColumns = board.columns.map { column ->
+            when (column.id) {
+                sourceColumnId -> column.copy(
+                    cards = column.cards.filter { it.id != cardId }.toMutableList()
+                )
+                targetColumnId -> column.copy(
+                    cards = (column.cards + card).toMutableList()
+                )
+                else -> column
+            }
+        }
+        updateBoardData(board.copy(columns = updatedColumns.toMutableList()))
+    }
+}
+
 
 /**
  * Верхняя панель доски с кнопкой "назад" и кнопкой настроек.

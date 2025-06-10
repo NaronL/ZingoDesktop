@@ -269,7 +269,7 @@ private fun WorkspaceList(
                         onOpen = { onOpen(workspace.id) },
                         onDelete = { onDelete(workspace.id) },
                         onEdit = { newTitle -> onEdit(workspace.id, newTitle) },
-                        modifier = Modifier.animateItemPlacement()
+                        modifier = Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null)
                     )
                 }
             }
