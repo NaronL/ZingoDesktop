@@ -3,11 +3,15 @@ package ru.igrakov.ui.screens
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -18,19 +22,20 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import kotlinx.coroutines.launch
-import ru.igrakov.models.*
+import ru.igrakov.models.BoardModel
+import ru.igrakov.models.ColumnModel
+import ru.igrakov.models.WorkspaceModel
 import ru.igrakov.services.FileService
 import ru.igrakov.ui.screens.element.WorkspaceCard
 import ru.igrakov.utils.Router
@@ -38,14 +43,12 @@ import ru.igrakov.utils.Strings
 import java.time.LocalDate
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorkspacesScreen() {
     var workspaces by remember { mutableStateOf(emptyList<WorkspaceModel>()) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var newWorkspaceTitle by remember { mutableStateOf("") }
-
-
 
     val fabScale by animateFloatAsState(
         targetValue = if (showCreateDialog) 0.8f else 1f,
@@ -57,86 +60,106 @@ fun WorkspacesScreen() {
             .getOrElse { emptyList() }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = Strings.t("workspaces"),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.alpha(0.9f)
-                    )
-                }, // закрывающая скобка была пропущена
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
-                ),
-                actions = {
-                    IconButton(
-                        onClick = { Router.navigate(Router.Screen.Settings) },
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Settings,
-                            contentDescription = Strings.t("settings"),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                },
-                modifier = Modifier.shadow(4.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                color = MaterialTheme.colorScheme.background
             )
-        },
-        floatingActionButton = {
-            AnimatedVisibility(
-                visible = !showCreateDialog,
-                enter = fadeIn() + scaleIn(),
-                exit = fadeOut() + scaleOut()
-            ) {
-                FloatingActionButton(
-                    onClick = { showCreateDialog = true },
-                    modifier = Modifier.scale(fabScale),
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    elevation = FloatingActionButtonDefaults.elevation(
-                        defaultElevation = 6.dp,
-                        pressedElevation = 12.dp
-                    )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add, // исправил, так как ты подключаешь Material Icons
-                        contentDescription = "Create workspace",
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-        }
-    ) { padding ->
-        AnimatedContent(
-            targetState = workspaces.isEmpty(),
-            transitionSpec = {
-                fadeIn() with fadeOut() using SizeTransform(clip = false)
-            },
-            modifier = Modifier.padding(padding)
-        ) { isEmpty ->
-            if (isEmpty) {
-                EmptyState()
-            } else {
-                WorkspaceList(
-                    workspaces = workspaces,
-                    onOpen = { workspaceId ->
-                        Router.selectedWorkspaceId = workspaceId
-                        Router.navigate(Router.Screen.Board, workspaceId)
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = Strings.t("workspaces"),
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        )
                     },
-                    onDelete = { id ->
-                        workspaces = workspaces.filterNot { it.id == id }
-                        FileService.deleteWorkspace(id)
-                    },
-                    onEdit = { id, newTitle ->
-                        workspaces = workspaces.map {
-                            if (it.id == id) it.copy(title = newTitle).also { updated ->
-                                FileService.saveWorkspace(updated)
-                            } else it
+
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                        .shadow(8.dp, RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
+                        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                        .border(
+                            0.5.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+                        ), // Легкая граница
+                    actions = {
+                        IconButton(
+                            onClick = { Router.navigate(Router.Screen.Settings) },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = Strings.t("settings"),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 )
+            },
+            floatingActionButton = {
+                AnimatedVisibility(
+                    visible = !showCreateDialog,
+                    enter = fadeIn() + scaleIn(animationSpec = spring(dampingRatio = 0.6f)),
+                    exit = fadeOut() + scaleOut()
+                ) {
+                    FloatingActionButton(
+                        onClick = { showCreateDialog = true },
+                        modifier = Modifier.scale(fabScale),
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        elevation = FloatingActionButtonDefaults.elevation(
+                            defaultElevation = 6.dp,
+                            pressedElevation = 12.dp,
+                            hoveredElevation = 8.dp
+                        ),
+                        shape = CircleShape
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Create workspace",
+                            modifier = Modifier.size(28.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+            }
+        ) { padding ->
+            AnimatedContent(
+                targetState = workspaces.isEmpty(),
+                transitionSpec = {
+                    (fadeIn() + expandVertically()).togetherWith(fadeOut() + shrinkVertically())
+                },
+                modifier = Modifier.padding(padding)
+            ) { isEmpty ->
+                if (isEmpty) {
+                    EmptyState(onCreateClick = { showCreateDialog = true })
+                } else {
+                    WorkspaceList(
+                        workspaces = workspaces,
+                        onOpen = { workspaceId ->
+                            Router.selectedWorkspaceId = workspaceId
+                            Router.navigate(Router.Screen.Board, workspaceId)
+                        },
+                        onDelete = { id ->
+                            workspaces = workspaces.filterNot { it.id == id }
+                            FileService.deleteWorkspace(id)
+                        },
+                        onEdit = { id, newTitle ->
+                            workspaces = workspaces.map {
+                                if (it.id == id) it.copy(title = newTitle).also { updated ->
+                                    FileService.saveWorkspace(updated)
+                                } else it
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -166,7 +189,7 @@ fun WorkspacesScreen() {
                 FileService.saveBoard(initialBoard)
 
                 Router.selectedWorkspaceId = newWorkspace.id
-                Router.navigate(Router.Screen.Board, newWorkspace.id) // Добавил workspaceId
+                Router.navigate(Router.Screen.Board, newWorkspace.id)
 
                 newWorkspaceTitle = ""
                 showCreateDialog = false
@@ -176,7 +199,7 @@ fun WorkspacesScreen() {
 }
 
 @Composable
-private fun EmptyState() {
+private fun EmptyState(onCreateClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -184,22 +207,39 @@ private fun EmptyState() {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = null,
-            modifier = Modifier.size(120.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-        )
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    shape = CircleShape
+                )
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                    shape = CircleShape
+                )
+                .clickable(onClick = onCreateClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = null,
+                modifier = Modifier.size(48.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = Strings.t("no_workspaces"),
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant, // завершил строку
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun WorkspaceList(
     workspaces: List<WorkspaceModel>,
@@ -214,7 +254,7 @@ private fun WorkspaceList(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(vertical = 16.dp)
     ) {
         items(workspaces, key = { it.id }) { workspace ->
@@ -229,6 +269,7 @@ private fun WorkspaceList(
                         onOpen = { onOpen(workspace.id) },
                         onDelete = { onDelete(workspace.id) },
                         onEdit = { newTitle -> onEdit(workspace.id, newTitle) },
+                        modifier = Modifier.animateItemPlacement()
                     )
                 }
             }
@@ -244,18 +285,16 @@ private fun CreateWorkspaceDialog(
     onCreate: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        var textFieldFocus by remember { mutableStateOf(true) }
-
-        LaunchedEffect(Unit) {
-            textFieldFocus = true
-        }
-
-        Surface(
-            shape = MaterialTheme.shapes.extraLarge,
-            tonalElevation = 24.dp,
+        Card(
             modifier = Modifier
-                .widthIn(min = 280.dp, max = 560.dp)
-                .padding(vertical = 24.dp)
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface,
+                contentColor = MaterialTheme.colorScheme.onSurface
+            ),
+            elevation = CardDefaults.cardElevation(16.dp)
         ) {
             Column(
                 modifier = Modifier.padding(24.dp),
@@ -263,15 +302,16 @@ private fun CreateWorkspaceDialog(
             ) {
                 Text(
                     Strings.t("new_workspace"),
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 )
 
                 val focusRequester = remember { FocusRequester() }
 
-                LaunchedEffect(textFieldFocus) {
-                    if (textFieldFocus) {
-                        focusRequester.requestFocus()
-                    }
+                LaunchedEffect(Unit) {
+                    focusRequester.requestFocus()
                 }
 
                 OutlinedTextField(
@@ -286,6 +326,11 @@ private fun CreateWorkspaceDialog(
                     keyboardActions = KeyboardActions(
                         onDone = { if (title.isNotBlank()) onCreate() }
                     ),
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -298,9 +343,10 @@ private fun CreateWorkspaceDialog(
                         onClick = onDismiss,
                         colors = ButtonDefaults.textButtonColors(
                             contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(Strings.t("cancel").uppercase())
+                        Text(Strings.t("cancel"))
                     }
 
                     Spacer(modifier = Modifier.width(8.dp))
@@ -313,11 +359,12 @@ private fun CreateWorkspaceDialog(
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
                         elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 0.dp,
-                            pressedElevation = 0.dp
-                        )
+                            defaultElevation = 2.dp,
+                            pressedElevation = 8.dp
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text(Strings.t("create").uppercase())
+                        Text(Strings.t("create"))
                     }
                 }
             }

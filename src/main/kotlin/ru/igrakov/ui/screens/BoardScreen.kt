@@ -23,30 +23,50 @@ import ru.igrakov.utils.Strings
 import java.util.*
 
 /**
+ * Экран настроек приложения.
+ * Позволяет пользователю изменять путь к папке, переключать тему (светлая/тёмная) и выбирать язык интерфейса.
+ * Настройки сохраняются локально и применяются немедленно.
+ * Также предоставляет кнопку выхода из аккаунта.
+ *
+ * @param onSave Коллбек, вызываемый при сохранении настроек (путь к папке, тема, язык).
+ * @param onLogout Коллбек для выхода из аккаунта.
+ * @param currentFolderPath Текущий путь к папке (начальное значение).
+ * @param currentTheme Текущая тема (true — тёмная, false — светлая).
+ * @param currentLocale Текущий выбранный язык интерфейса.
+ * @param modifier Модификатор для стилизации компонента.
  * @author Andrey Igrakov
- */
+ *
+*/
 @Composable
 fun BoardScreen() {
 
+    // Идентификатор выбранного рабочего пространства
     val workspaceId = Router.selectedWorkspaceId
+
+    // Флаги состояния
     var showNewColumnDialog by remember { mutableStateOf(false) }
     var boardModel by remember { mutableStateOf<BoardModel?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
+    // Название новой колонки
     var newColumnTitle by remember { mutableStateOf("") }
 
+    // Загрузка данных доски при изменении рабочего пространства
     LaunchedEffect(workspaceId) {
         workspaceId?.let {
+            // Загружаем доску или создаём новую, если её нет
             boardModel = FileService.loadBoard(it) ?: createNewBoard(it).also(FileService::saveBoard)
         }
         isLoading = false
     }
 
+    // Если рабочее пространство не выбрано, возвращаемся на экран выбора
     if (workspaceId == null && !isLoading) {
         LaunchedEffect(Unit) { Router.navigate(Router.Screen.Workspaces) }
         return
     }
 
+    // Основной контейнер экрана с верхней панелью и кнопкой добавления колонки
     Scaffold(
         topBar = {
             BoardAppBar(
@@ -55,11 +75,12 @@ fun BoardScreen() {
                 onSettings = { Router.navigate(Router.Screen.Settings) }
             )
         },
-
         floatingActionButton = {
-            FloatingActionButton(onClick = { showNewColumnDialog = true } ) { Text("+") }
+            FloatingActionButton(onClick = { showNewColumnDialog = true }) { Text("+") }
         }
     ) { padding ->
+
+        // Диалог добавления новой колонки
         if (showNewColumnDialog) {
             AlertDialog(
                 onDismissRequest = { showNewColumnDialog = false },
@@ -69,7 +90,7 @@ fun BoardScreen() {
                         value = newColumnTitle,
                         onValueChange = { newColumnTitle = it },
                         label = { Text(Strings.t("title_column")) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth(),
                     )
                 },
                 confirmButton = {
@@ -95,11 +116,13 @@ fun BoardScreen() {
             )
         }
 
+        // Отображаем индикатор загрузки
         if (isLoading || boardModel == null) {
             Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
         } else {
+            // Отображаем список колонок
             val columns = remember(boardModel) { boardModel?.columns?.toList() ?: emptyList() }
 
             LazyRow(
@@ -115,6 +138,14 @@ fun BoardScreen() {
                         columnData = column,
                         onAddCard = { card -> addCard(column.id, card, boardModel) { boardModel = it } },
                         onDeleteColumn = { deleteColumn(column.id, boardModel) { boardModel = it } },
+                        onDeleteCard = { cardId ->
+                            // Удаление карточки из колонки
+                            val updatedColumns = boardModel?.columns?.map {
+                                if (it.id == column.id) it.copy(cards = it.cards.filter { c -> c.id != cardId })
+                                else it
+                            } ?: emptyList()
+                            boardModel = boardModel?.copy(columns = updatedColumns.toMutableList())
+                        },
                         onUpdateCard = { updatedCard -> updateCard(column.id, updatedCard, boardModel) { boardModel = it } },
                         onUpdate = { saveBoard(boardModel) }
                     )
@@ -124,12 +155,18 @@ fun BoardScreen() {
     }
 }
 
+/**
+ * Создаёт новую доску с одной колонкой "To Do" по умолчанию.
+ */
 private fun createNewBoard(id: String) = BoardModel(
     id = id,
     title = "New Board",
     columns = mutableListOf(ColumnModel(UUID.randomUUID().toString(), "To Do", mutableListOf()))
 )
 
+/**
+ * Добавляет новую колонку в доску.
+ */
 private fun addColumn(boardModel: BoardModel?, newTitle: String, updateBoardData: (BoardModel) -> Unit) {
     boardModel?.let {
         val updatedColumns = it.columns.toMutableList().apply {
@@ -141,6 +178,9 @@ private fun addColumn(boardModel: BoardModel?, newTitle: String, updateBoardData
     }
 }
 
+/**
+ * Добавляет карточку в указанную колонку.
+ */
 private fun addCard(columnId: String, card: CardModel, boardModel: BoardModel?, updateBoardData: (BoardModel) -> Unit) {
     boardModel?.let {
         val updatedColumns = it.columns.map { column ->
@@ -156,6 +196,9 @@ private fun addCard(columnId: String, card: CardModel, boardModel: BoardModel?, 
     }
 }
 
+/**
+ * Удаляет колонку по её ID.
+ */
 private fun deleteColumn(columnId: String, boardModel: BoardModel?, updateBoardData: (BoardModel) -> Unit) {
     boardModel?.let {
         val updatedColumns = it.columns.filter { column -> column.id != columnId }
@@ -165,6 +208,9 @@ private fun deleteColumn(columnId: String, boardModel: BoardModel?, updateBoardD
     }
 }
 
+/**
+ * Обновляет карточку в указанной колонке.
+ */
 private fun updateCard(columnId: String, updatedCard: CardModel, boardModel: BoardModel?, updateBoardData: (BoardModel) -> Unit) {
     boardModel?.let {
         val updatedColumns = it.columns.map { column ->
@@ -180,12 +226,18 @@ private fun updateCard(columnId: String, updatedCard: CardModel, boardModel: Boa
     }
 }
 
+/**
+ * Сохраняет доску в файл.
+ */
 private fun saveBoard(boardModel: BoardModel?) {
     boardModel?.let {
         FileService.saveBoard(it)
     }
 }
 
+/**
+ * Верхняя панель доски с кнопкой "назад" и кнопкой настроек.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BoardAppBar(title: String, onBack: () -> Unit, onSettings: () -> Unit) {

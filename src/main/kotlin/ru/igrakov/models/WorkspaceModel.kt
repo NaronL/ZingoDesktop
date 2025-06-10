@@ -11,11 +11,11 @@ import java.time.LocalDate
  * В будущем можно добавить привязку пользователей или разрешений доступа.
  * @author Andrey Igrakov
  **/
-@Serializable
+@Serializable // Аннотация, указывающая, что данный класс может быть сериализован (например, в JSON)
 data class WorkspaceModel(
-    val id: String, // Уникальный идентификатор рабочего пространства
-    var title: String, // Название рабочего пространства
-    val columns: MutableList<ColumnModel>, // Список колонок, связанных с рабочим пространством
-    @Serializable(with = LocalDateSerializer::class)
-    val createDate: LocalDate,
+    val id: String, // Уникальный идентификатор рабочего пространства, используется для различения разных объектов
+    var title: String, // Название рабочего пространства, может быть изменено пользователем
+    val columns: MutableList<ColumnModel>, // Список колонок, входящих в данное рабочее пространство; позволяет динамически добавлять или удалять колонки
+    @Serializable(with = LocalDateSerializer::class) // Указывает, что поле будет сериализоваться с помощью кастомного сериализатора для LocalDate
+    val createDate: LocalDate, // Дата создания рабочего пространства; хранится как LocalDate (без времени)
 )

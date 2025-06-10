@@ -1,11 +1,11 @@
 package ru.igrakov.ui.components
 
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -16,12 +16,14 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.material3.ListItemDefaults.contentColor
 import androidx.compose.material3.TabRowDefaults.secondaryContentColor
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush.Companion.horizontalGradient
@@ -29,6 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import ru.igrakov.models.CardModel
 import ru.igrakov.models.Difficulty
 import ru.igrakov.models.Person
@@ -51,10 +55,6 @@ fun CardView(
 ) {
     var showEditDialog by remember { mutableStateOf(false) }
     var showAddPersonDialog by remember { mutableStateOf(false) }
-    var text by remember { mutableStateOf(card.text) }
-    var description by remember { mutableStateOf(card.description) }
-    var difficulty by remember { mutableStateOf(card.difficulty) }
-    var color by remember { mutableStateOf(card.color) }
 
     val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy") }
     val isOverdue = remember(card.deadline) {
@@ -64,37 +64,29 @@ fun CardView(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 8.dp, horizontal = 16.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = card.color),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = card.color,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(8.dp)
+                .padding(16.dp)
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Top
             ) {
-                card.deadline?.let { deadline ->
-                    Text(
-                        text = "Deadline: ${deadline.format(dateFormatter)}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isOverdue) Color.Red else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                }
-
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Difficulty badge
                     Box(
                         modifier = Modifier
                             .align(Alignment.Start)
@@ -110,68 +102,74 @@ fun CardView(
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = card.difficulty.title.uppercase(),
+                            text = card.difficulty.title,
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = Color.White
                         )
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                    // Card content
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
                             text = card.text,
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = contentColor,
                             maxLines = 2
                         )
                         if (card.description.isNotEmpty()) {
                             Text(
                                 text = card.description,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = secondaryContentColor,
                                 maxLines = 4
                             )
                         }
                     }
+
+                    card.deadline?.let { deadline ->
+                        Text(
+                            text = "Срок: ${deadline.format(dateFormatter)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isOverdue) MaterialTheme.colorScheme.error
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 }
+
+                // Action buttons
                 Row {
-                    IconButton(onClick = { showEditDialog = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Редактировать")
-                    }
-                    IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.Delete, contentDescription = "Удалить")
-                    }
-                }
-            }
-
-            if (card.people.isNotEmpty()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    PeopleAvatars(people = card.people)
-
-                    TextButton(
-                        onClick = { showAddPersonDialog = true },
-                        modifier = Modifier.padding(start = 8.dp)
+                    IconButton(
+                        onClick = { showEditDialog = true },
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        Text("Add person")
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = Strings.t("edit"),
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = Strings.t("delete"),
+                            tint = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
-            } else {
-                TextButton(
-                    onClick = { showAddPersonDialog = true },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text("Add person")
-                }
             }
+
+            // People section
+            PeopleSection(
+                people = card.people,
+                onAddPerson = { showAddPersonDialog = true },
+                modifier = Modifier.padding(top = 12.dp)
+            )
         }
     }
 
+    // Dialogs
     if (showEditDialog) {
         EditCardDialog(
             card = card,
@@ -179,8 +177,7 @@ fun CardView(
             onSave = { updatedCard ->
                 onEdit(updatedCard)
                 showEditDialog = false
-            },
-            onAddPerson = { showAddPersonDialog = true }
+            }
         )
     }
 
@@ -188,9 +185,7 @@ fun CardView(
         AddPersonDialog(
             onDismiss = { showAddPersonDialog = false },
             onAddPerson = { person ->
-                val updatedPeople = card.people.toMutableList().apply {
-                    add(person)
-                }
+                val updatedPeople = card.people.toMutableList().apply { add(person) }
                 onEdit(card.copy(people = updatedPeople))
             }
         )
@@ -198,212 +193,27 @@ fun CardView(
 }
 
 @Composable
-private fun EditCardDialog(
-    card: CardModel,
-    onDismiss: () -> Unit,
-    onSave: (CardModel) -> Unit,
-    onAddPerson: () -> Unit
+private fun PeopleSection(
+    people: List<Person>,
+    onAddPerson: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    var text by remember { mutableStateOf(card.text) }
-    var description by remember { mutableStateOf(card.description) }
-    var difficulty by remember { mutableStateOf(card.difficulty) }
-    var color by remember { mutableStateOf(card.color) }
-    var isEditingPeople by remember { mutableStateOf(false) }
-    var showDatePicker by remember { mutableStateOf(false) }
-    var deadline by remember { mutableStateOf(card.deadline) }
-
-    val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy") }
-    val deadlineText = remember(deadline) {
-        deadline?.format(dateFormatter) ?: "No deadline"
-    }
-
-    if (showDatePicker) {
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            onDateSelected = { date ->
-                deadline = date
-                showDatePicker = false
-            },
-            initialDate = deadline
-        )
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(Strings.t("edit_card")) },
-        text = {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    label = { Text(Strings.t("title")) }
-                )
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text(Strings.t("description")) }
-                )
-
-                Text(Strings.t("difficulty"))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Difficulty.entries.forEach { diff ->
-                        DifficultyButton(
-                            difficulty = diff,
-                            isSelected = difficulty == diff,
-                            onClick = { difficulty = diff }
-                        )
-                    }
-                }
-
-                Text(Strings.t("color_card"))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(color, RoundedCornerShape(50))
-                            .border(
-                                width = 2.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = RoundedCornerShape(50)
-                            )
-                    )
-
-                    listOf(
-                        Color.White, Color(0xFFFFF9C4), Color(0xFFBBDEFB),
-                        Color(0xFFC8E6C9), Color(0xFFFFCDD2)
-                    ).forEach { availableColor ->
-                        ColorPickerButton(
-                            color = availableColor,
-                            isSelected = color == availableColor,
-                            onClick = { color = availableColor }
-                        )
-                    }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Deadline: $deadlineText")
-                    Button(onClick = { showDatePicker = true }) {
-                        Text(if (deadline == null) "Set Deadline" else "Change Deadline")
-                    }
-                    if (deadline != null) {
-                        TextButton(onClick = { deadline = null }) {
-                            Text("Remove")
-                        }
-                    }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("People")
-                    IconToggleButton(
-                        checked = isEditingPeople,
-                        onCheckedChange = { isEditingPeople = it }
-                    ) {
-                        Icon(
-                            if (isEditingPeople) Icons.Default.Delete else Icons.Default.Edit,
-                            contentDescription = "Edit people"
-                        )
-                    }
-                }
-
-                if (card.people.isNotEmpty()) {
-                    EditablePeopleAvatars(
-                        people = card.people,
-                        isEditing = isEditingPeople,
-                        onPersonRemoved = { person ->
-                            val updatedPeople = card.people.toMutableList().apply {
-                                remove(person)
-                            }
-                            onSave(card.copy(people = updatedPeople))
-                        },
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
-
-                Button(
-                    onClick = onAddPerson,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Add Person")
-                }
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSave(card.copy(
-                        text = text,
-                        description = description,
-                        difficulty = difficulty,
-                        color = color
-                    ))
-                }
-            ) {
-                Text(Strings.t("save"))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(Strings.t("cancel"))
-            }
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        if (people.isNotEmpty()) {
+            PeopleAvatars(people = people)
         }
-    )
-}
 
-@Composable
-fun AddPersonDialog(
-    onDismiss: () -> Unit,
-    onAddPerson: (Person) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Add Person") },
-        text = {
-            Column {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Full Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (name.isNotBlank()) {
-                        onAddPerson(Person(
-                            id = UUID.randomUUID().toString(),
-                            name = name.trim()
-                        ))
-                        onDismiss()
-                    }
-                },
-                enabled = name.isNotBlank()
-            ) {
-                Text("Add")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
+        TextButton(
+            onClick = onAddPerson,
+            modifier = Modifier.padding(start = 8.dp)
+        ) {
+            Text(Strings.t("add_person"))
         }
-    )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -479,31 +289,263 @@ fun PersonAvatar(
 }
 
 @Composable
+private fun EditCardDialog(
+    card: CardModel,
+    onDismiss: () -> Unit,
+    onSave: (CardModel) -> Unit
+) {
+    var text by remember { mutableStateOf(card.text) }
+    var description by remember { mutableStateOf(card.description) }
+    var difficulty by remember { mutableStateOf(card.difficulty) }
+    var color by remember { mutableStateOf(card.color) }
+    var isEditingPeople by remember { mutableStateOf(false) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var deadline by remember { mutableStateOf(card.deadline) }
+    var showAddPersonDialog by remember { mutableStateOf(false) }
+
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("dd MMM yyyy") }
+    val deadlineText = remember(deadline) {
+        deadline?.format(dateFormatter) ?: Strings.t("no_dedline")
+    }
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            onDateSelected = { date ->
+                deadline = date
+                showDatePicker = false
+            },
+            initialDate = deadline ?: LocalDate.now()
+        )
+    }
+
+    if (showAddPersonDialog) {
+        AddPersonDialog(
+            onDismiss = { showAddPersonDialog = false },
+            onAddPerson = { person ->
+                val updatedPeople = card.people.toMutableList().apply { add(person) }
+                onSave(card.copy(people = updatedPeople))
+            }
+        )
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(Strings.t("edit_card")) },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Strings.t("title") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    ),
+                )
+
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Strings.t("description") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    ),
+                )
+
+                // Difficulty selector
+                Column {
+                    Text(Strings.t("difficulty"), style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Difficulty.entries.forEach { diff ->
+                            DifficultyButton(
+                                difficulty = diff,
+                                isSelected = difficulty == diff,
+                                onClick = { difficulty = diff },
+                            )
+                        }
+                    }
+                }
+
+                // Color selector
+                Column {
+                    Text(Strings.t("color_card"), style = MaterialTheme.typography.labelMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        listOf(
+                            Color.White, Color(0xFFFFF9C4), Color(0xFFBBDEFB),
+                            Color(0xFFC8E6C9), Color(0xFFFFCDD2)
+                        ).forEach { availableColor ->
+                            ColorPickerButton(
+                                color = availableColor,
+                                isSelected = color == availableColor,
+                                onClick = { color = availableColor }
+                            )
+                        }
+                    }
+                }
+
+                // Deadline selector
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Срок: $deadlineText")
+                    Button(onClick = { showDatePicker = true }) {
+                        Text(if (deadline == null) "Установить срок" else Strings.t("change"))
+                    }
+                    if (deadline != null) {
+                        TextButton(onClick = { deadline = null }) {
+                            Text(Strings.t("remove"))
+                        }
+                    }
+                }
+
+                // People management
+                Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(Strings.t("people"))
+                        IconToggleButton(
+                            checked = isEditingPeople,
+                            onCheckedChange = { isEditingPeople = it }
+                        ) {
+                            Icon(
+                                if (isEditingPeople) Icons.Default.Delete else Icons.Default.Edit,
+                                contentDescription = Strings.t("edit_people")
+                            )
+                        }
+                    }
+
+                    if (card.people.isNotEmpty()) {
+                        EditablePeopleAvatars(
+                            people = card.people,
+                            isEditing = isEditingPeople,
+                            onPersonRemoved = { person ->
+                                val updatedPeople = card.people.toMutableList().apply { remove(person) }
+                                onSave(card.copy(people = updatedPeople))
+                            },
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+
+                    Button(
+                        onClick = { showAddPersonDialog = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(Strings.t("add_person"))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onSave(card.copy(
+                        text = text,
+                        description = description,
+                        difficulty = difficulty,
+                        color = color,
+                        deadline = deadline
+                    ))
+                }
+            ) {
+                Text(Strings.t("save"))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(Strings.t("cancel"))
+            }
+        }
+    )
+}
+
+@Composable
+fun AddPersonDialog(
+    onDismiss: () -> Unit,
+    onAddPerson: (Person) -> Unit
+) {
+    var name by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(Strings.t("add")) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(Strings.t("full_name")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.colors(
+                        focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                        unfocusedIndicatorColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                    ),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (name.isNotBlank()) {
+                        onAddPerson(Person(
+                            id = UUID.randomUUID().toString(),
+                            name = name.trim()
+                        ))
+                        onDismiss()
+                    }
+                },
+                enabled = name.isNotBlank()
+            ) {
+                Text(Strings.t("add"))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(Strings.t("cancel"))
+            }
+        }
+    )
+}
+
+@Composable
 fun DifficultyButton(
     difficulty: Difficulty,
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val containerColor = when (difficulty) {
-        Difficulty.EASY -> Color(0xFF81C784)
-        Difficulty.MEDIUM -> Color(0xFFFFB74D)
-        Difficulty.HARD -> Color(0xFFE57373)
-    }
+    val targetContainerColor = difficulty.color
+    val containerColor by animateColorAsState(
+        targetValue = if (isSelected) targetContainerColor else targetContainerColor.copy(alpha = 0.5f)
+    )
 
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(
-            containerColor = if (isSelected) containerColor else containerColor.copy(alpha = 0.5f)
+            containerColor = containerColor,
+            contentColor = Color.White
         ),
-        border = if (isSelected) {
-            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-        } else {
-            null
-        }
+        border = if (isSelected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
+        modifier = Modifier.height(36.dp)
     ) {
-        Text(difficulty.name)
+        Text(difficulty.title)
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -563,8 +605,8 @@ fun EditablePeopleAvatars(
                 if (showDeleteConfirm) {
                     AlertDialog(
                         onDismissRequest = { showDeleteConfirm = false },
-                        title = { Text("Remove person?") },
-                        text = { Text("Remove ${person.name} from this card?") },
+                        title = { Text(Strings.t("remove_person")) },
+                        text = { Text("Удалить ${person.name} с этой карточки?") },
                         confirmButton = {
                             Button(
                                 onClick = {
@@ -575,12 +617,12 @@ fun EditablePeopleAvatars(
                                     containerColor = MaterialTheme.colorScheme.error
                                 )
                             ) {
-                                Text("Remove")
+                                Text(Strings.t("remove"))
                             }
                         },
                         dismissButton = {
                             TextButton(onClick = { showDeleteConfirm = false }) {
-                                Text("Cancel")
+                                Text(Strings.t("cancel"))
                             }
                         }
                     )
@@ -625,54 +667,6 @@ fun ColorPickerButton(
 }
 
 @Composable
-fun DataPickerDialog(
-    onDismissRequest: () -> Unit,
-    onDateSelected: (LocalDate) -> Unit,
-    initialDate: LocalDate? = null
-) {
-    var selectedDate by remember { mutableStateOf(initialDate ?: LocalDate.now()) }
-
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { Text("Select Deadline") },
-        text = {
-            Column {
-                DataPicker(
-                    selectedDate = selectedDate,
-                    onDateSelected = { date -> selectedDate = date },
-                    modifier = Modifier.size(300.dp)
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                // Quick selection buttons
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { selectedDate = LocalDate.now().plusDays(1) }) {
-                        Text("Tomorrow")
-                    }
-                    Button(onClick = { selectedDate = LocalDate.now().plusWeeks(1) }) {
-                        Text("Next week")
-                    }
-                    Button(onClick = { selectedDate = LocalDate.now().plusMonths(1) }) {
-                        Text("Next month")
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            Button(onClick = { selectedDate?.let { onDateSelected(it) } }) {
-                Text("OK")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismissRequest) {
-                Text("Cancel")
-            }
-        }
-    )
-}
-
-@Composable
 fun DataPicker(
     selectedDate: LocalDate?,
     onDateSelected: (LocalDate) -> Unit,
@@ -682,7 +676,13 @@ fun DataPicker(
     var selectedDateState by remember { mutableStateOf(selectedDate) }
 
     Column(
-        modifier = modifier,
+        modifier = modifier
+            .padding(24.dp)
+            .background(
+                color = MaterialTheme.colorScheme.surface,
+                shape = MaterialTheme.shapes.extraLarge
+            )
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(
@@ -690,34 +690,67 @@ fun DataPicker(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier.fillMaxWidth()
         ) {
-            IconButton(onClick = { currentMonth = currentMonth.minusMonths(1) }) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Previous month")
+            IconButton(
+                onClick = { currentMonth = currentMonth.minusMonths(1) },
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    Icons.Default.ArrowBack,
+                    contentDescription = "Previous month",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
 
-            Text(
-                text = currentMonth.month.getDisplayName(TextStyle.FULL, Locale.getDefault()) + " " + currentMonth.year,
-                style = MaterialTheme.typography.titleMedium
-            )
+            AnimatedContent(
+                targetState = currentMonth,
+                transitionSpec = {
+                    val direction = if (targetState.year > initialState.year) 1 else -1
+                    (slideInHorizontally { width -> width * direction } + fadeIn())
+                        .togetherWith(slideOutHorizontally { width -> -width * direction } + fadeOut())
+                }
+            ) { month ->
+                Text(
+                    text = month.month.getDisplayName(TextStyle.FULL, Locale.getDefault())
+                        .replaceFirstChar { it.titlecase(Locale.getDefault()) } +
+                            " " + month.year,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+            }
 
-            IconButton(onClick = { currentMonth = currentMonth.plusMonths(1) }) {
-                Icon(Icons.Default.ArrowForward, contentDescription = "Next month")
+            IconButton(
+                onClick = { currentMonth = currentMonth.plusMonths(1) },
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    Icons.Default.ArrowForward,
+                    contentDescription = "Next month",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
         }
 
         Spacer(Modifier.height(16.dp))
 
         Row(modifier = Modifier.fillMaxWidth()) {
-            listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun").forEach { day ->
+            val daysOfWeek = listOf("mo", "tu", "we", "th", "fr", "sa", "su").map { Strings.t(it) }
+            daysOfWeek.forEach { day ->
                 Text(
                     text = day,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(vertical = 8.dp),
                     textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.labelMedium
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
         }
-
-        Spacer(Modifier.height(8.dp))
 
         val daysInMonth = currentMonth.lengthOfMonth()
         val firstDayOfMonth = currentMonth.atDay(1).dayOfWeek.value
@@ -725,10 +758,12 @@ fun DataPicker(
 
         LazyVerticalGrid(
             columns = GridCells.Fixed(7),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             items((1 until firstDayOfMonth).count()) {
-                Spacer(Modifier.size(32.dp))
+                Spacer(Modifier.size(36.dp))
             }
 
             items(days) { day ->
@@ -737,25 +772,26 @@ fun DataPicker(
 
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .padding(2.dp)
+                        .size(36.dp)
+                        .clip(CircleShape)
                         .background(
                             color = when {
-                                isSelected -> MaterialTheme.colorScheme.primary
-                                isToday -> MaterialTheme.colorScheme.primaryContainer
+                                isSelected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+                                isToday -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                                 else -> Color.Transparent
                             },
                             shape = CircleShape
                         )
                         .border(
                             width = if (isToday && !isSelected) 1.dp else 0.dp,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                             shape = CircleShape
                         )
                         .clickable {
                             selectedDateState = day
                             onDateSelected(day)
-                        },
+                        }
+                        .animateContentSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -763,8 +799,9 @@ fun DataPicker(
                         color = when {
                             isSelected -> MaterialTheme.colorScheme.onPrimary
                             isToday -> MaterialTheme.colorScheme.primary
-                            else -> MaterialTheme.colorScheme.onSurface
-                        }
+                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                        },
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
                     )
                 }
             }
@@ -780,44 +817,58 @@ fun DatePickerDialog(
 ) {
     var selectedDate by remember { mutableStateOf(initialDate ?: LocalDate.now()) }
 
-    AlertDialog(
+    Dialog(
         onDismissRequest = onDismissRequest,
-        title = { Text("Select Deadline") },
-        text = {
-            Column {
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .width(650.dp)
+                .padding(16.dp),
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = Strings.t("select_date"),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
                 DataPicker(
                     selectedDate = selectedDate,
                     onDateSelected = { date -> selectedDate = date },
-                    modifier = Modifier.size(300.dp)
+                    modifier = Modifier.width(300.dp)
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
 
-                // Quick selection buttons
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(onClick = { selectedDate = LocalDate.now().plusDays(1) }) {
-                        Text("Tomorrow")
+                    TextButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
+                        Text(Strings.t("cancel"))
                     }
-                    Button(onClick = { selectedDate = LocalDate.now().plusWeeks(1) }) {
-                        Text("Next week")
-                    }
-                    Button(onClick = { selectedDate = LocalDate.now().plusMonths(1) }) {
-                        Text("Next month")
+
+                    Button(
+                        onClick = { selectedDate?.let { onDateSelected(it) } },
+                        enabled = selectedDate != null,
+                        modifier = Modifier.height(40.dp)
+                    ) {
+                        Text(Strings.t("save"))
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(onClick = { selectedDate?.let { onDateSelected(it) } }) {
-                Text("OK")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismissRequest) {
-                Text("Cancel")
-            }
         }
-    )
+    }
 }

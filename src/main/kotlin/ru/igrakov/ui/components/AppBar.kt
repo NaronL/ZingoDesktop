@@ -9,6 +9,10 @@ import androidx.compose.ui.Modifier
 import ru.igrakov.utils.Strings
 
 /**
+ * Верхняя панель приложения (AppBar) с выравниванием по центру.
+ * Содержит название приложения и кнопку перехода к настройкам.
+ * Использует Material3.
+ * @param onSettingsClick Лямбда, вызываемая при нажатии на кнопку настроек.
  * @author Andrey Igrakov
  **/
 @OptIn(ExperimentalMaterial3Api::class)
@@ -16,20 +20,29 @@ import ru.igrakov.utils.Strings
 fun AppBar(onSettingsClick: () -> Unit) {
     CenterAlignedTopAppBar(
         title = {
+            // Название приложения
             Text(text = "Zingo", style = MaterialTheme.typography.titleLarge)
         },
         actions = {
+            // Кнопка настроек
             IconButton(onClick = onSettingsClick) {
-                Icon(Icons.Default.Settings, contentDescription = Strings.t("settings"))
+                Icon(
+                    imageVector = Icons.Default.Settings, // Иконка настроек
+                    contentDescription = Strings.t("settings") // Локализованное описание для доступности
+                )
             }
         },
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth() // Занимает всю ширину контейнера
     )
 }
 
+/**
+ * Превью для Composable редактора.
+ * Отображает AppBar без логики обработки нажатия.
+ */
 @Composable
 fun AppBarPreview() {
     MaterialTheme {
-        AppBar(onSettingsClick = {})
+        AppBar(onSettingsClick = {}) // Пустая обработка нажатия для предпросмотра
     }
 }

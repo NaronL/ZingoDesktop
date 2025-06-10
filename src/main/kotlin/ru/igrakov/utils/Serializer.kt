@@ -10,24 +10,40 @@ import kotlinx.serialization.encoding.Encoder
 import java.time.LocalDate
 
 /**
- * @author Naron
- **/
+ * Сериализатор для типа LocalDate.
+ * Позволяет преобразовывать дату в строку и обратно для корректной работы с JSON.
+ * Используется в моделях, где необходимо сохранять дату в файл.
+ * @author Andrey Igrakov
+ */
 object LocalDateSerializer : KSerializer<LocalDate> {
 
+    // Описание сериализуемого типа: LocalDate будет представляться как строка
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("LocalDate", PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: LocalDate) = encoder.encodeString(value.toString())
+    // Преобразование LocalDate в строку для записи в JSON
+    override fun serialize(encoder: Encoder, value: LocalDate) =
+        encoder.encodeString(value.toString())
 
-    override fun deserialize(decoder: Decoder): LocalDate = LocalDate.parse(decoder.decodeString())
-
+    // Преобразование строки из JSON обратно в LocalDate
+    override fun deserialize(decoder: Decoder): LocalDate =
+        LocalDate.parse(decoder.decodeString())
 }
 
+/**
+ * Сериализатор для типа Color.
+ * Позволяет сохранять цвет в формате шестнадцатеричной строки и восстанавливать его обратно.
+ * Используется для хранения цветов в JSON.
+ */
 object ColorSerializer : KSerializer<Color> {
 
-    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Color", PrimitiveKind.LONG)
+    // Описание сериализуемого типа: Color будет представляться как строка
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Color", PrimitiveKind.STRING)
 
-    override fun serialize(encoder: Encoder, value: Color) = encoder.encodeLong(value.value.toLong())
+    // Преобразование цвета в шестнадцатеричную строку для записи в JSON
+    override fun serialize(encoder: Encoder, value: Color) =
+        encoder.encodeString(value.value.toString(16)) // Сохраняем цвет в hex-строке
 
-    override fun deserialize(decoder: Decoder): Color = Color(decoder.decodeLong())
-
+    // Преобразование шестнадцатеричной строки обратно в объект Color
+    override fun deserialize(decoder: Decoder): Color =
+        Color(decoder.decodeString().toULong(16))
 }

@@ -1,11 +1,16 @@
 package ru.igrakov.utils
 
 /**
+ * Объект для хранения и получения локализованных строк (текстов) интерфейса.
+ * Поддерживает несколько языков (локалей) и предоставляет метод для получения текста по ключу.
  * @author Andrey Igrakov
  */
 object Strings {
+    // Текущая локаль (язык), используется для выбора набора строк.
     var locale = "ru"
 
+    // Карта языков, где ключ — код языка (locale),
+    // значение — карта ключей текстов к соответствующим переведённым строкам.
     private val strings = mapOf(
         "en" to mapOf(
             "workspaces" to "Workspaces",
@@ -45,7 +50,24 @@ object Strings {
             "welcome" to "Welcome",
             "loading" to "Loading...",
             "error" to "Error",
-            "success" to "Success"
+            "success" to "Success",
+            "people" to "People",
+            "add_person" to "Add person",
+            "remove_person" to "Remove person",
+            "edit_person" to "Edit person",
+            "no_dedline" to "No deadline",
+            "select_date" to "Select date",
+            "mo" to "Mo",
+            "tu" to "Tu",
+            "we" to "We",
+            "th" to "Th",
+            "fr" to "Fr",
+            "sa" to "Sa",
+            "su" to "Su",
+            "full_name" to "Full name",
+            "remove" to "Remove",
+            "dark_theme" to "Dark theme",
+            "light_theme" to "Light theme"
         ),
         "ru" to mapOf(
             "workspaces" to "Рабочие пространства",
@@ -85,11 +107,28 @@ object Strings {
             "welcome" to "Добро пожаловать",
             "loading" to "Загрузка...",
             "error" to "Ошибка",
-            "success" to "Успех"
+            "success" to "Успех",
+            "people" to "Человек",
+            "add_person" to "Добавить человека",
+            "remove_person" to "Удалить человека",
+            "edit_person" to "Изменить человека",
+            "no_dedline" to "Нет срока",
+            "select_date" to "Выбрать дату",
+            "mo" to "Пн",
+            "tu" to "Вт",
+            "we" to "Ср",
+            "th" to "Чт",
+            "fr" to "Пт",
+            "sa" to "Сб",
+            "su" to "Вс",
+            "full_name" to "ФИО",
+            "remove" to "Удалить",
+            "dark_theme" to "Тёмная тема",
+            "light_theme" to "Белая тема"
         ),
         "es" to mapOf(
             "workspaces" to "Espacios de trabajo",
-            "new_workspace" to "Nuevo espacio",
+            "new_workspace" to "Nuevo espacio de trabajo",
             "no_workspaces" to "No hay espacios de trabajo",
             "settings" to "Configuración",
             "add_column" to "Añadir columna",
@@ -98,6 +137,7 @@ object Strings {
             "new_card" to "Nueva tarjeta",
             "new_column" to "Nueva columna",
             "title_column" to "Título de columna",
+            "title_workspace" to "Título del espacio",
             "delete" to "Eliminar",
             "edit" to "Editar",
             "edit_card" to "Editar tarjeta",
@@ -124,11 +164,28 @@ object Strings {
             "welcome" to "Bienvenido",
             "loading" to "Cargando...",
             "error" to "Error",
-            "success" to "Éxito"
+            "success" to "Éxito",
+            "people" to "Personas",
+            "add_person" to "Añadir persona",
+            "remove_person" to "Eliminar persona",
+            "edit_person" to "Editar persona",
+            "no_dedline" to "Sin fecha límite",
+            "select_date" to "Seleccionar fecha",
+            "mo" to "Lu",
+            "tu" to "Ma",
+            "we" to "Mi",
+            "th" to "Ju",
+            "fr" to "Vi",
+            "sa" to "Sa",
+            "su" to "Do",
+            "full_name" to "Nombre completo",
+            "remove" to "Eliminar",
+            "dark_theme" to "Tema oscuro",
+            "light_theme" to "Tema claro"
         ),
         "fr" to mapOf(
             "workspaces" to "Espaces de travail",
-            "new_workspace" to "Nouvel espace",
+            "new_workspace" to "Nouvel espace de travail",
             "no_workspaces" to "Aucun espace de travail",
             "settings" to "Paramètres",
             "add_column" to "Ajouter une colonne",
@@ -136,7 +193,8 @@ object Strings {
             "add" to "Ajouter",
             "new_card" to "Nouvelle carte",
             "new_column" to "Nouvelle colonne",
-            "title_column" to "Titre de colonne",
+            "title_column" to "Titre de la colonne",
+            "title_workspace" to "Titre de l'espace",
             "delete" to "Supprimer",
             "edit" to "Modifier",
             "edit_card" to "Modifier la carte",
@@ -152,7 +210,7 @@ object Strings {
             "title" to "Titre",
             "description" to "Description",
             "difficulty" to "Difficulté",
-            "color_card" to "Couleur de carte",
+            "color_card" to "Couleur de la carte",
             "delete_column" to "Supprimer la colonne",
             "exit" to "Quitter",
             "language" to "Langue",
@@ -163,7 +221,24 @@ object Strings {
             "welcome" to "Bienvenue",
             "loading" to "Chargement...",
             "error" to "Erreur",
-            "success" to "Succès"
+            "success" to "Succès",
+            "people" to "Personnes",
+            "add_person" to "Ajouter une personne",
+            "remove_person" to "Supprimer une personne",
+            "edit_person" to "Modifier la personne",
+            "no_dedline" to "Pas de date limite",
+            "select_date" to "Sélectionner une date",
+            "mo" to "Lu",
+            "tu" to "Ma",
+            "we" to "Me",
+            "th" to "Je",
+            "fr" to "Ve",
+            "sa" to "Sa",
+            "su" to "Di",
+            "full_name" to "Nom complet",
+            "remove" to "Supprimer",
+            "dark_theme" to "Thème sombre",
+            "light_theme" to "Thème clair"
         ),
         "de" to mapOf(
             "workspaces" to "Arbeitsbereiche",
@@ -176,6 +251,7 @@ object Strings {
             "new_card" to "Neue Karte",
             "new_column" to "Neue Spalte",
             "title_column" to "Spaltentitel",
+            "title_workspace" to "Arbeitsbereichstitel",
             "delete" to "Löschen",
             "edit" to "Bearbeiten",
             "edit_card" to "Karte bearbeiten",
@@ -197,14 +273,38 @@ object Strings {
             "language" to "Sprache",
             "difficulty_easy" to "Einfach",
             "difficulty_middle" to "Mittel",
-            "difficulty_hard" to "Schwer",
+            "difficulty_hard" to "Schwierig",
             "app_name" to "Aufgabenboard",
             "welcome" to "Willkommen",
             "loading" to "Wird geladen...",
             "error" to "Fehler",
-            "success" to "Erfolg"
+            "success" to "Erfolg",
+            "people" to "Personen",
+            "add_person" to "Person hinzufügen",
+            "remove_person" to "Person entfernen",
+            "edit_person" to "Person bearbeiten",
+            "no_dedline" to "Keine Frist",
+            "select_date" to "Datum auswählen",
+            "mo" to "Mo",
+            "tu" to "Di",
+            "we" to "Mi",
+            "th" to "Do",
+            "fr" to "Fr",
+            "sa" to "Sa",
+            "su" to "So",
+            "full_name" to "Vollständiger Name",
+            "remove" to "Entfernen",
+            "dark_theme" to "Dunkles Thema",
+            "light_theme" to "Helles Thema"
         )
     )
 
+    /**
+     * Возвращает строку для текущей локали по ключу.
+     * Если ключ не найден, возвращает сам ключ (для отладки).
+     *
+     * @param key ключ строки
+     * @return локализованная строка или ключ, если перевод отсутствует
+     */
     fun t(key: String) = strings[locale]?.get(key) ?: key
 }

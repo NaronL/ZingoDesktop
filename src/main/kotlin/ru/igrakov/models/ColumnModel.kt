@@ -12,5 +12,5 @@ import kotlinx.serialization.Serializable
 data class ColumnModel(
     val id: String, // Уникальный идентификатор колонки
     val title: String, // Название колонки
-    val cards: MutableList<CardModel> = mutableListOf() // Список карточек внутри колонки (по умолчанию пустой)
+    val cards: List<CardModel> = mutableListOf() // Список карточек внутри колонки (по умолчанию пустой)
 )

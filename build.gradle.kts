@@ -21,6 +21,7 @@ dependencies {
     implementation(compose.material3)
     implementation(compose.uiTooling)
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+    implementation("org.burnoutcrew.composereorderable:reorderable:0.9.6")
 }
 
 compose.desktop {
